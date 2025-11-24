@@ -486,13 +486,31 @@ exports.handler = async function(event, context) {
   
   }
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Content-Type": content.type+"; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-    },
-    body: content.data,
-  };
+  if(params && params.return && params.return == "file") {
+    
+    var result = {
+      statusCode: 200,
+      headers: {
+        "Content-Type": content.type+"; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: content.data.toString("base64"),
+      isBase64Encoded: true,
+    };
+
+  } else {
+
+    var result = {
+      statusCode: 200,
+      headers: {
+        "Content-Type": content.type+"; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: content.data,
+    };
+  
+  }
+  
+  return result;
 
 };
