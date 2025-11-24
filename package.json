@@ -1,0 +1,20 @@
+{
+  "name": "nostr-multimedia-netlify",
+  "version": "1.0.0",
+  "description": "Fetch anything from Nostr - JSON RPC, plaintext, Markdown, HTML and images",
+  "license": "MIT",
+  "author": "ed253",
+  "type": "module",
+  "main": "netlify/functions/api.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node netlify/functions/api.js"
+  },
+  "dependencies": {
+    "@scure/base": "^2.0.0",
+    "file-type": "^21.1.1",
+    "marked": "^17.0.0",
+    "node-tlv": "^1.5.14",
+    "ws": "^8.18.3"
+  }
+}
