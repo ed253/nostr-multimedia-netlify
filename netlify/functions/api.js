@@ -1,4 +1,3 @@
-import { createServer } from "http";
 import { bech32 } from "@scure/base";
 import TLV from "node-tlv";
 import { marked } from "marked";
