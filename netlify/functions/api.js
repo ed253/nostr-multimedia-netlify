@@ -1,3 +1,4 @@
+import { createServer } from "http";
 import { bech32 } from "@scure/base";
 import TLV from "node-tlv";
 import { marked } from "marked";
@@ -66,7 +67,40 @@ function bech32ToHex(noteId) {
 
 }
 
-function constructQuery(params) {
+async function nip05ToHex(author) {
+
+  if(!author.includes("@")) {
+    return bech32ToHex(author);
+  }
+
+  var pieces = author.split("@");
+  var name = pieces[0];
+  var domain = "https://" + pieces[1];
+  
+  try {
+    var validUrl = new URL(domain);
+  } catch(err) {
+    return author;
+  }
+
+  var url = domain + "/.well-known/nostr.json?name=" + name;
+
+  try {
+    var content = await fetch(url);
+    var json = await content.json();
+  } catch(err) {
+    return author;
+  }
+
+  if(json["names"] && json["names"][name]) {
+    var author = json["names"][name];
+  }
+
+  return author;
+
+}
+
+async function constructQuery(params) {
 
   if(!params.fetch || params.fetch == "note") {
  
@@ -83,6 +117,32 @@ function constructQuery(params) {
     if(params.note.slice(0,5) != "naddr") {
       var filter = { "ids": [noteId], "limit": 1 };
     }
+
+    var query = ["REQ", "fetchNote", filter];
+
+  }
+
+  if(params.fetch == "dtag") {
+
+    if(!params.kind) {
+      return [];
+    }
+
+    if(!params.dtag) {
+      return [];
+    }
+ 
+    if(params.author.includes("@")) {
+      var npub = await nip05ToHex(params.author);
+    } else {
+      var npub = bech32ToHex(params.author);
+    }
+
+    if(!npub) {
+      return [];
+    }
+
+    var filter = { "authors": [npub], "#d": [params.dtag], "kinds": [params.kind], "limit": 1 };
 
     var query = ["REQ", "fetchNote", filter];
 
@@ -342,26 +402,7 @@ async function formatContent(type, notes) {
 
   }
 
-  if(type == "html") {
-
-    var note = notes[0];
-
-    if(note[0] == "NOTICE" || note[0] == "OK") {
-      var html = note[1];
-    } else if(note[0] == "EVENT") {
-      var html = note[2]["content"];
-    } else {
-      var html = "";
-    }
-    
-    var content = {
-      type: "text/html",
-      data: html,
-    }
-
-  }
-
-  if(type == "file") {
+  if(type == "web") {
 
     var note = notes[0];
 
@@ -451,13 +492,37 @@ function getRoute(url) {
       params.since = url[6].replace("since-", "");
     }
 
+    if(url[7]) {
+      params.until = url[6].replace("until-", "");
+    }
+
   }
 
-  if(["text","markdown","html","file"].includes(url[1])) {
+  if(url[1] == "text" || url[1] == "markdown") {
 
+    params.fetch = "note";
     params.return = url[1];
     params.relay = url[2];
     params.note = url[3];
+
+  }
+
+  if(url[1] == "web") {
+
+    params.return = url[1];
+    params.relay = url[2];
+
+    if(!url[4]) {
+      params.fetch = "note";
+      params.note = url[3];
+    }
+
+    if(url[4]) {
+      params.fetch = "dtag";
+      params.kind = 30080;
+      params.author = url[3];
+      params.dtag = url[4];
+    }
 
   }
 
@@ -471,7 +536,7 @@ exports.handler = async function(event, context) {
 
     var params = getRoute(event.path);
 
-    var query = constructQuery(params);
+    var query = await constructQuery(params);
 
     var notes = await fetchNotes(params.relay, query);
 
@@ -486,7 +551,7 @@ exports.handler = async function(event, context) {
   
   }
 
-  if(params && params.return && params.return == "file") {
+  if(params && params.return && params.return == "web") {
     
     var result = {
       statusCode: 200,
